@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets,QtCore,QtGui
 from PyQt5.QtWidgets import *
-from PyQt5.QtWidgets import QMainWindow, QApplication, QMenu, QMenuBar, QAction, QFileDialog, QLabel, QInputDialog,QTreeView
+from PyQt5.QtWidgets import QMainWindow, QApplication,QSlider, QMenu, QMenuBar, QAction, QFileDialog, QLabel, QInputDialog,QTreeView
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QPoint,QBuffer,QEvent
@@ -16,11 +16,12 @@ class MainWindow(QMainWindow):
         
         self.crate_main_menubar()
         
-        self.main_wiget = QWidget()
+        self.main_wiget = self.create_main_wiget()
         self.setCentralWidget(self.main_wiget)
         self.setGeometry(0,100,1000,700)
         self.setWindowTitle("메인창")
         
+        self.paint_img = QImage()
 
     # 메뉴 생성
     def crate_main_menubar(self):
@@ -42,38 +43,23 @@ class MainWindow(QMainWindow):
         
         main_layout = QHBoxLayout()
         self.img_view = CView(self)
-        
-        
-        # https://stackoverflow.com/questions/51456403/mouseover-event-for-a-pyqt5-label
-        # self.img_view.enterEvent = lambda e: print("들어옴")
-        # self.img_view.leaveEvent = lambda e: print("떠남")
-        
 
         self.left_layout = QVBoxLayout()
+        # groupbox = QGroupBox('도구')           
         
-
-        # QTreewidget 생성 및 설정
-        # self.pdf_file_tree_wiget = QTreeWidget(self)       
-        self.pdf_file_tree_wiget = Treeview(self)            
-        
-        self.pdf_file_tree_wiget.setAutoScroll(True)
-        self.pdf_file_tree_wiget.setAlternatingRowColors(True)
-        self.pdf_file_tree_wiget.header().setVisible(False)
-        self.pdf_file_tree_wiget.setColumnWidth(0,800)
-        self.pdf_file_tree_wiget.itemClicked.connect(self.click_list_item)
+        self.threshold_slider = QSlider(Qt.Horizontal, self)
+        self.threshold_slider.setRange(0, 255)
+        self.threshold_slider.set
+        self.threshold_slider.setSingleStep(1)
+        self.threshold_label = QLabel('0')
         
         
-        self.left_layout.addWidget(self.pdf_file_tree_wiget)     
+        self.left_layout.addWidget(self.threshold_slider)
         
-        
-        groupbox = QGroupBox('도구')
-
-
-            
         
         main_layout.addLayout(self.left_layout,stretch=1)
-        main_layout.addWidget(self.img_view,stretch=5)
-        
+        main_layout.addWidget(self.img_view,stretch=5)    
+          
         
         main_wiget.setLayout(main_layout)
         return main_wiget
@@ -86,8 +72,45 @@ class MainWindow(QMainWindow):
         filename = [file for file in filename if file.lower().endswith(img_list)]
         
         if len(filename) > 0:
-            pass
-                
+            pil_img = Image.open(filename[0])
+            cv_img = cv2.imread(filename[0])
+            
+            self.img_view.paint_img = QImage(cv_img, cv_img.shape[1], cv_img.shape[0],cv_img.strides[0],QImage.Format_RGB888) 
+            self.img_view.overlay_img = QtGui.QImage(self.img_view.paint_img.size(), QtGui.QImage.Format_ARGB32)
+            self.img_view.overlay_img.fill(QtCore.Qt.transparent)
+            self.img_view.scene = QGraphicsScene()
+            self.img_view.item = QGraphicsPixmapItem(QPixmap.fromImage(self.img_view.paint_img))
+            self.img_view.scene.addItem(self.img_view.item)
+            self.img_view.setScene(self.img_view.scene)
+        self.update()
+
+class CView(QGraphicsView):
+    def __init__(self,parent):
+        super().__init__(parent)       
+        self.setAlignment(QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
+        self.setStyleSheet("background:transparent;")       
+        
+        self.parent = parent
+        
+        # 1 그냥, 2 그리기, 3 지우기 모드
+        self.mode = 1
+        
+        self.change = False
+        self.drawing = False
+        self.brushSize = 20
+        self.brushColor = QtGui.QColor(QtCore.Qt.red)
+        self.lastPoint = QtCore.QPoint()
+
+        self.paint_img = QImage()
+        
+        self.overlay_img = QtGui.QImage(self.paint_img.size(), QtGui.QImage.Format_ARGB32)
+        self.overlay_img.fill(QtCore.Qt.transparent)
+        
+        self.scene = QGraphicsScene()
+        self.item = QGraphicsPixmapItem(QPixmap.fromImage(self.paint_img))
+
+        self.scene.addItem(self.item)
+        self.setScene(self.scene)
             
    
         
