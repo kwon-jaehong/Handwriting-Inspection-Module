@@ -5,7 +5,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt, QPoint,QBuffer,QEvent
 
-from PIL import Image
+from PIL import Image,ImageDraw,ImageFont
 import cv2
 import numpy as np
 import math
@@ -151,6 +151,9 @@ class MainWindow(QMainWindow):
         return main_wiget
     
     def create_image_splite_wiget(self):
+        
+        self.input_text = ""
+        
         image_splite_main_wiget = QWidget()
         self.image_splite_main_layout = QHBoxLayout()
           
@@ -174,14 +177,65 @@ class MainWindow(QMainWindow):
         self.image_splite_left_layout.addWidget(self.rect_padding_layout_groupbox)
         
         
+
+        self.canny_minmax_layout = QVBoxLayout()
+        self.canny_minmax_layout.setContentsMargins(0, 0, 0, 0)
+        self.canny_minmax_layout.setSpacing(0)
+        self.canny_minmax_layout_groupbox = QGroupBox('canny edge min_max')
+        self.image_split_canny_min = QLabel('1')        
+        self.image_split_canny_min_slider = QSlider(Qt.Horizontal, self)
+        self.image_split_canny_min_slider.valueChanged.connect(self.img_canny_min_changed)
+        self.image_split_canny_min_slider.sliderReleased.connect(self.image_splite_end)
+        self.image_split_canny_min_slider.setRange(1,500)
+        self.image_split_canny_min_slider.setValue(100)
+        self.image_split_canny_min_slider.setSingleStep(1)
+        self.image_split_canny_max = QLabel('1')        
+        self.image_split_canny_max_slider = QSlider(Qt.Horizontal, self)
+        self.image_split_canny_max_slider.valueChanged.connect(self.img_canny_max_changed)
+        self.image_split_canny_max_slider.sliderReleased.connect(self.image_splite_end)
+        self.image_split_canny_max_slider.setRange(1,500)
+        self.image_split_canny_max_slider.setValue(200)
+        self.image_split_canny_max_slider.setSingleStep(1)
+        self.canny_minmax_layout.addWidget(self.image_split_canny_min_slider)
+        self.canny_minmax_layout.addWidget(self.image_split_canny_min)
+        self.canny_minmax_layout.addWidget(self.image_split_canny_max_slider)
+        self.canny_minmax_layout.addWidget(self.image_split_canny_max)
+        self.canny_minmax_layout_groupbox.setLayout(self.canny_minmax_layout)
+        self.image_splite_left_layout.addWidget(self.canny_minmax_layout_groupbox)
+        
+        
+        
+        self.thresh_hold_layout = QVBoxLayout()
+        self.thresh_hold_layout.setContentsMargins(0, 0, 0, 0)
+        self.thresh_hold_layout.setSpacing(0)
+        self.thresh_hold_layout_groupbox = QGroupBox('thresh hold')
+        self.thresh_hold_var = QLabel('1')        
+        self.thresh_hold_slider = QSlider(Qt.Horizontal, self)
+        self.thresh_hold_slider.valueChanged.connect(self.thresh_hold_var_change)
+        self.thresh_hold_slider.sliderReleased.connect(self.image_splite_end)
+        self.thresh_hold_slider.setRange(1,255)
+        self.thresh_hold_slider.setValue(127)
+        self.thresh_hold_slider.setSingleStep(1)
+        self.thresh_hold_layout.addWidget(self.thresh_hold_slider)
+        self.thresh_hold_layout.addWidget(self.thresh_hold_var)
+        self.thresh_hold_layout_groupbox.setLayout(self.thresh_hold_layout)
+        self.image_splite_left_layout.addWidget(self.thresh_hold_layout_groupbox)
         
         
         
         
+        
+        
+                
+                
+        self.input_text_btn = QPushButton('문자열 입력', self)
+        self.input_text_btn.clicked.connect(self.showDialog)
+        self.image_splite_left_layout.addWidget(self.input_text_btn)
+        self.image_splite_left_layout.addStretch(3)
         
         self.image_splite_main_layout.addLayout(self.image_splite_left_layout,stretch=1)
         self.image_splite_main_layout.addWidget(self.image_splite_image_view,stretch=5)   
-
+        
           
         image_splite_main_wiget.setLayout(self.image_splite_main_layout)
         
@@ -217,6 +271,13 @@ class MainWindow(QMainWindow):
         self.canny_max_value.setText(str(value))
     def rect_value_changed(self,value):
         self.rect_value.setText(str(value))
+    def img_canny_max_changed(self,value):
+        self.image_split_canny_max.setText(str(value))
+    def img_canny_min_changed(self,value):
+        self.image_split_canny_min.setText(str(value))
+    def thresh_hold_var_change(self,value):
+        self.thresh_hold_var.setText(str(value))
+    
     
     ## 임계값 설정 끝날때 실행될 함수
     def value_end(self):
@@ -227,8 +288,13 @@ class MainWindow(QMainWindow):
         if self.filename!="":
             self.refresh_image_split()
         
-        
-        
+    ## 자를 기준의 문자열 받아오기
+    def showDialog(self):
+        text, ok = QInputDialog.getText(self, 'Input Dialog', '자를 문자열을 입력하세요')
+        if ok==True:
+            self.input_text = text
+            self.image_splite_end()
+            
     ## 이미지 새로고침
     def refresh_image(self):
 
@@ -301,14 +367,14 @@ class MainWindow(QMainWindow):
         HoughLines_t = 550
         
         ## 캐니앳지 변수값
-        c_min = 100
-        c_max = 200
+        c_min = int(self.image_split_canny_min.text())
+        c_max = int(self.image_split_canny_max.text())
         
         # 자를 선 넓이
-        rect_padding = 50
+        rect_padding = int(self.rect_value.text())
         
         ## 이진화 스래쉬홀드값
-        thresh_hold_var = 127
+        thresh_hold_var = int(self.thresh_hold_var.text())
         
         ## 가까이 붙어 있는 픽셀들 비율 -> 숫자가 높을수록 더 멀리 보겠다는 뜻, 수직,수평선 중복제거에 쓰이는 값
         merge_rate = 0.005
@@ -444,6 +510,8 @@ class MainWindow(QMainWindow):
         
         
         img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        # _,dst = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY_INV)
+        # _,thresh_hold_img = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY)
         _,dst = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         _,thresh_hold_img = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
@@ -469,7 +537,24 @@ class MainWindow(QMainWindow):
         rect_img = thresh_hold_img.copy()
         rect_img = cv2.cvtColor(rect_img,cv2.COLOR_GRAY2BGR)
         
-        for x,y,w,h,_ in label_position:
+        _,hh,_= rect_img.shape
+        font = ImageFont.truetype("./고딕.ttf", size=int(hh*0.04))
+        for i,rect in enumerate(label_position):
+            x,y,w,h,_=rect
+            
+            
+            pil_img=Image.fromarray(rect_img)
+            draw = ImageDraw.Draw(pil_img)
+            
+            try:
+                draw.text((x, y), self.input_text[i], fill='red',font=font)
+            except:
+                draw.text((x, y), str(i), fill='red',font=font)
+                
+            rect_img = np.array(pil_img)
+            
+            
+            
             cv2.rectangle(rect_img, (x, y), (x + w, y + h), (255, 0, 0), 3)
             
         
