@@ -1,3 +1,4 @@
+from os import stat
 from PyQt5 import QtWidgets,QtCore,QtGui
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QMainWindow, QApplication,QSlider, QMenu, QMenuBar, QAction, QFileDialog, QLabel, QInputDialog,QTreeView
@@ -9,12 +10,16 @@ from PIL import Image,ImageDraw,ImageFont
 import cv2
 import numpy as np
 import math
+import os
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.filename = ""
+        
+        self.result_dir_path = "./result_img"
+        
         self.crate_main_menubar()
         self.main_wiget = self.create_main_wiget()
         
@@ -78,7 +83,7 @@ class MainWindow(QMainWindow):
         self.tool_layout = QVBoxLayout()
         self.tool_layout.setContentsMargins(0, 0, 0, 0)
         self.tool_layout.setSpacing(0)
-        self.tool_groupbox = QGroupBox('커널 사이즈')
+        self.tool_groupbox = QGroupBox('침식,팽창 커널 사이즈')
         self.kernel_size_value = QLabel('1')        
         self.kernel_size_slider = QSlider(Qt.Horizontal, self)
         self.kernel_size_slider.valueChanged.connect(self.kernel_size_changed)
@@ -100,14 +105,14 @@ class MainWindow(QMainWindow):
         self.canny_min_slider = QSlider(Qt.Horizontal, self)
         self.canny_min_slider.valueChanged.connect(self.canny_min_changed)
         self.canny_min_slider.sliderReleased.connect(self.value_end)
-        self.canny_min_slider.setRange(0, 999)
+        self.canny_min_slider.setRange(0, 255)
         self.canny_min_slider.setValue(50)
         self.canny_min_slider.setSingleStep(1)
         self.canny_max_value = QLabel('0')    
         self.canny_max_slider = QSlider(Qt.Horizontal, self)
         self.canny_max_slider.valueChanged.connect(self.canny_max_changed)
         self.canny_max_slider.sliderReleased.connect(self.value_end)
-        self.canny_max_slider.setRange(0, 999)
+        self.canny_max_slider.setRange(0, 255)
         self.canny_max_slider.setValue(110)
         self.canny_max_slider.setSingleStep(1)
         self.canny_layout.addWidget(self.canny_min_slider)
@@ -177,6 +182,26 @@ class MainWindow(QMainWindow):
         self.image_splite_left_layout.addWidget(self.rect_padding_layout_groupbox)
         
         
+        
+        self.hough_tr_layout = QVBoxLayout()
+        self.hough_tr_layout.setContentsMargins(0, 0, 0, 0)
+        self.hough_tr_layout.setSpacing(0)
+        self.hough_tr_layout_groupbox = QGroupBox('허프변환 임계값')
+        self.hough_tr_value = QLabel('1')        
+        self.hough_tr_slider = QSlider(Qt.Horizontal, self)
+        self.hough_tr_slider.valueChanged.connect(self.hough_tr_value_changed)
+        self.hough_tr_slider.sliderReleased.connect(self.image_splite_end)
+        self.hough_tr_slider.setRange(1,1500)
+        self.hough_tr_slider.setValue(550)
+        self.hough_tr_slider.setSingleStep(1)
+        self.hough_tr_layout.addWidget(self.hough_tr_slider)
+        self.hough_tr_layout.addWidget(self.hough_tr_value)
+        self.hough_tr_layout_groupbox.setLayout(self.hough_tr_layout)
+        self.image_splite_left_layout.addWidget(self.hough_tr_layout_groupbox)       
+        
+        
+        
+        
 
         self.canny_minmax_layout = QVBoxLayout()
         self.canny_minmax_layout.setContentsMargins(0, 0, 0, 0)
@@ -216,12 +241,41 @@ class MainWindow(QMainWindow):
         self.thresh_hold_slider.setRange(1,255)
         self.thresh_hold_slider.setValue(127)
         self.thresh_hold_slider.setSingleStep(1)
+        
+        
+        
+        self.thresh_hold_slider.setDisabled(True)
+        self.thresh_hold_otsu_check_box = QCheckBox('Otsu 알고리즘 적용', self)        
+        self.thresh_hold_otsu_check_box.toggle()
+        self.thresh_hold_otsu_check_box.stateChanged.connect(self.click_otus_check)
+        
+                
+        
+
         self.thresh_hold_layout.addWidget(self.thresh_hold_slider)
         self.thresh_hold_layout.addWidget(self.thresh_hold_var)
+        self.thresh_hold_layout.addWidget(self.thresh_hold_otsu_check_box)
         self.thresh_hold_layout_groupbox.setLayout(self.thresh_hold_layout)
         self.image_splite_left_layout.addWidget(self.thresh_hold_layout_groupbox)
         
         
+        
+                
+        self.image_split_factor_layout = QVBoxLayout()
+        self.image_split_factor_layout.setContentsMargins(0, 0, 0, 0)
+        self.image_split_factor_layout.setSpacing(0)
+        self.image_split_factor_layout_groupbox = QGroupBox('결과 이미지 비율')
+        self.image_split_factor_value = QLabel('0.3')        
+        self.image_split_factor_slider = QSlider(Qt.Horizontal, self)
+        self.image_split_factor_slider.valueChanged.connect(self.image_split_factor_value_change)
+        self.image_split_factor_slider.sliderReleased.connect(self.image_splite_end)
+        self.image_split_factor_slider.setRange(10,100)
+        self.image_split_factor_slider.setValue(30)
+        self.image_split_factor_slider.setSingleStep(1)
+        self.image_split_factor_layout.addWidget(self.image_split_factor_slider)
+        self.image_split_factor_layout.addWidget(self.image_split_factor_value)
+        self.image_split_factor_layout_groupbox.setLayout(self.image_split_factor_layout)
+        self.image_splite_left_layout.addWidget(self.image_split_factor_layout_groupbox)
         
         
         
@@ -230,6 +284,16 @@ class MainWindow(QMainWindow):
                 
         self.input_text_btn = QPushButton('문자열 입력', self)
         self.input_text_btn.clicked.connect(self.showDialog)
+        self.image_splite_left_layout.addWidget(self.input_text_btn)
+
+        
+        self.input_text_btn = QPushButton('이전페이지', self)
+        self.input_text_btn.clicked.connect(self.ROI_detector_render)
+        self.image_splite_left_layout.addWidget(self.input_text_btn)
+        
+        
+        self.input_text_btn = QPushButton('이미지 자르기', self)
+        self.input_text_btn.clicked.connect(self.split_handwriting_img)
         self.image_splite_left_layout.addWidget(self.input_text_btn)
         self.image_splite_left_layout.addStretch(3)
         
@@ -246,7 +310,26 @@ class MainWindow(QMainWindow):
         if self.filename != "":
             self.stackedWidget.setCurrentWidget(self.image_splite_wiget)
             self.image_splite_end()
+    ## ROI 화면 전환
+    def ROI_detector_render(self):
+        if self.filename != "":
+            self.stackedWidget.setCurrentWidget(self.main_wiget)
+            self.refresh_image()
+    
+    ## ROI를 기준으로 입력문자열과 비교하여 이미지 자름
+    def split_handwriting_img(self):
+        if  self.thresh_hold_img is not None and self.labelposition is not None:
+            if not os.path.exists(self.result_dir_path ):
+                os.makedirs(self.result_dir_path)
+                
+            for i,rect in enumerate(self.labelposition):
+                x,y,w,h,_=rect
+                try:
+                    cv2.imwrite(os.path.join(self.result_dir_path,self.input_text[i]+".png"),self.thresh_hold_img[y:y+h,x:x+w])
+                except:
+                    cv2.imwrite(os.path.join(self.result_dir_path,str(i)+".png"),self.thresh_hold_img[y:y+h,x:x+w])
 
+            
     ## 손글씨 이미지 파일 load
     def open_img_file(self):
         img_list = ('jpg','png')
@@ -277,7 +360,19 @@ class MainWindow(QMainWindow):
         self.image_split_canny_min.setText(str(value))
     def thresh_hold_var_change(self,value):
         self.thresh_hold_var.setText(str(value))
+    def hough_tr_value_changed(self,value):
+        self.hough_tr_value.setText(str(value))
+    def image_split_factor_value_change(self,value):
+        self.image_split_factor_value.setText(str(value/100))
+
     
+    ## 오츠 알고리즘 적용
+    def click_otus_check(self,state):
+        if state==Qt.Checked:
+            self.thresh_hold_slider.setDisabled(True)
+        else:
+            self.thresh_hold_slider.setDisabled(False)
+        self.refresh_image_split()
     
     ## 임계값 설정 끝날때 실행될 함수
     def value_end(self):
@@ -364,7 +459,9 @@ class MainWindow(QMainWindow):
  
         #허프변환 인자값 높을수록 직선을 덜찾음
         # -> 550개의 점들이 뭉쳐져있어야만 직선으로 봄
-        HoughLines_t = 550
+        # HoughLines_t = 550
+        HoughLines_t = int(self.hough_tr_value.text())
+        
         
         ## 캐니앳지 변수값
         c_min = int(self.image_split_canny_min.text())
@@ -391,14 +488,14 @@ class MainWindow(QMainWindow):
         padding_fator = 0.05
         
         ## 결과이미지 프린터 비율
-        factot = 0.2
+        factot = float(self.image_split_factor_value.text())
         
         ## 군집화에서 탐색할 거리 (distanse)
         Epsilon = 5
         
         w = img.shape[1]
         h = img.shape[0]
-        line_img = np.zeros((img.shape),np.uint8)   
+        line_img = np.zeros((img.shape),np.uint8)    
         line_img = cv2.cvtColor(line_img,cv2.COLOR_BGR2GRAY)
 
         edges = cv2.Canny(img, c_min, c_max )
@@ -407,7 +504,7 @@ class MainWindow(QMainWindow):
         vertical_line = []
         horizon_line = []        
         position_list = []
-        
+
         # 검출된 모든 선 순회하며 수직, 수평 선 찾음
         for line in lines:
             r,theta = line[0] # 거리와 각도
@@ -423,7 +520,7 @@ class MainWindow(QMainWindow):
                 horizon_line.append([x1, y1, x2, y2])
             if abs(y1+y2) < 10:
                 vertical_line.append([x1, y1, x2, y2])
-        
+
         w_th = int(merge_rate * w)
         vertical_line = list(sorted(vertical_line,key=lambda x:x[0]))
 
@@ -510,11 +607,14 @@ class MainWindow(QMainWindow):
         
         
         img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-        # _,dst = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY_INV)
-        # _,thresh_hold_img = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY)
-        _,dst = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        _,thresh_hold_img = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
+        if self.thresh_hold_otsu_check_box.checkState() == 2:
+            _,dst = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+            _,thresh_hold_img = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        else:
+            _,dst = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY_INV )
+            _,thresh_hold_img = cv2.threshold(img_gray,thresh_hold_var,255,cv2.THRESH_BINARY)
+            
         
         delete_index_list = []
         
@@ -539,6 +639,7 @@ class MainWindow(QMainWindow):
         
         _,hh,_= rect_img.shape
         font = ImageFont.truetype("./고딕.ttf", size=int(hh*0.04))
+        
         for i,rect in enumerate(label_position):
             x,y,w,h,_=rect
             
@@ -557,6 +658,10 @@ class MainWindow(QMainWindow):
             
             cv2.rectangle(rect_img, (x, y), (x + w, y + h), (255, 0, 0), 3)
             
+        
+        ## 정보 저장
+        self.thresh_hold_img = thresh_hold_img
+        self.labelposition = label_position
         
 
         line_img = cv2.cvtColor(line_img,cv2.COLOR_GRAY2BGR)
