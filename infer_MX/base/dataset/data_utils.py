@@ -4,9 +4,7 @@ Copyright (c) 2021-present NAVER Corp.
 MIT license
 """
 import random
-import json
 from pathlib import Path
-from tqdm import tqdm
 from collections import defaultdict
 
 from .ttf_utils import read_font

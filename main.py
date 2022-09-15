@@ -1,9 +1,9 @@
-from PyQt5 import QtWidgets,QtCore,QtGui
+from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QMainWindow, QApplication,QSlider, QMenu, QMenuBar, QAction, QFileDialog, QLabel, QInputDialog,QTreeView
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtGui import *
-from PyQt5.QtCore import Qt, QPoint,QBuffer,QEvent
+from PyQt5.QtCore import Qt
 
 from PIL import Image,ImageDraw,ImageFont
 import cv2
@@ -11,13 +11,23 @@ import numpy as np
 import math
 import os
 
+from infer_MX import run
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.filename = ""
         
-        self.result_dir_path = "./result_img"
+        self.result_dir_path = "./split_handwriting_image"
+        self.gan_result_dir_path = "./g_handwriting_image"
+        
+        
+        self.gan_models_dir_path = "./config_data/gan_models"
+        self.vit_models_dir_path = "./config_data/vit_models"
+        self.source_ttf_dir_path = "config_data/source_ttf_data"
+        self.gan_text_path = "./config_data/generation_char.txt"
+        
         
         self.crate_main_menubar()
         self.main_wiget = self.create_main_wiget()
@@ -46,7 +56,7 @@ class MainWindow(QMainWindow):
 
 
         ## 삭제해도됨
-        self.filename = "./GUI_pyqt5/932f6c1e-2274-4220-a363-05a2f01d1616.jpg"
+        self.filename = "./GUI_pyqt5/20220726_122213.jpg"
         self.refresh_image()
         
         
@@ -60,6 +70,11 @@ class MainWindow(QMainWindow):
     def crate_main_menubar(self):
         self.mainMenu = self.menuBar()
         self.menubar = self.mainMenu.addMenu("메뉴")
+        
+        self.menubar_gan = self.mainMenu.addMenu("손글씨 생성")
+        self.hr_gan_Action = QAction('손글씨 생성', self)
+        self.hr_gan_Action.triggered.connect(self.hr_gan)
+        self.menubar_gan.addAction(self.hr_gan_Action)
 
         self.openAction = QAction('jpg 이미지 불러오기', self)
         self.openAction.triggered.connect(self.open_img_file)
@@ -68,6 +83,47 @@ class MainWindow(QMainWindow):
         self.closeAction = QAction('나가기', self)
         self.closeAction.triggered.connect(self.close)
         self.menubar.addAction(self.closeAction) 
+        
+    ## 손글씨 생성 시작
+    def hr_gan(self):
+        
+        
+        # 손글씨 생성에 GPU 사용
+        cuda_flg = False
+        
+        
+        
+        ## 생성할 문자열 불러옴
+        f = open(self.gan_text_path,'r')
+        line = f.readline()
+        line = line.replace(' ','')
+        gan_chars = line
+        
+        
+        ## 생성에 뼈대가될 base line ttf 파일 불러옴
+        ## 첫번쨰는 무조건 source.ttf로시작 (구현체에서 그렇게 했음)
+        source_ttf_file_list = [ os.path.join(self.source_ttf_dir_path,fname) for fname in os.listdir(self.source_ttf_dir_path) if fname.lower().endswith('.ttf')]
+        
+        
+        ## gan model list 불러옴
+        gan_model_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.gan_models_dir_path) if fname.lower().endswith('.pth')]
+        
+        ## 손글씨 생성 참조할 손글씨 이미지 리스트
+        ref_image_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.vit_models_dir_path) if fname.lower().endswith('.png')]
+
+        
+        
+        ## vit model list 불러옴(손글씨 검수 모델)
+        vit_model_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.vit_models_dir_path) if fname.lower().endswith('.pth')]
+
+
+        
+        
+                
+        
+        
+        print("a")
+        pass
         
     # 작업창 메인 레이아웃 위젯 생성
     def create_main_wiget(self):
@@ -637,7 +693,9 @@ class MainWindow(QMainWindow):
         rect_img = cv2.cvtColor(rect_img,cv2.COLOR_GRAY2BGR)
         
         _,hh,_= rect_img.shape
-        font = ImageFont.truetype("./GUI_pyqt5/고딕.ttf", size=int(hh*0.04))
+        
+        source_ttf_file_list = [ os.path.join(self.source_ttf_dir_path,fname) for fname in os.listdir(self.source_ttf_dir_path) if fname.lower().endswith('.ttf')]
+        font = ImageFont.truetype(source_ttf_file_list[0], size=int(hh*0.04))
         
         for i,rect in enumerate(label_position):
             x,y,w,h,_=rect

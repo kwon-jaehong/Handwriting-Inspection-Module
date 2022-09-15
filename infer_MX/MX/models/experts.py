@@ -8,7 +8,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from base.modules import ResBlock, CBAM
+from infer_MX.base.modules import ResBlock, CBAM
 
 
 class SingleExpert(nn.Module):

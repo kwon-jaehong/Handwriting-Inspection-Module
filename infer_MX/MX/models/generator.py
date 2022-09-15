@@ -9,7 +9,7 @@ from .style_encoder import StyleEncoder
 from .experts import Experts
 from .decoder import Decoder
 
-import base.utils as utils
+import infer_MX.base.utils as utils
 
 
 class Generator(nn.Module):

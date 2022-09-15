@@ -6,7 +6,7 @@ MIT license
 import json
 from PIL import Image
 
-from base.dataset import load_img_data, load_ttf_data, render, read_font, get_filtered_chars
+from infer_MX.base.dataset import load_img_data, load_ttf_data, render, read_font, get_filtered_chars
 
 
 def load_reference(data_dir, extension, ref_chars):

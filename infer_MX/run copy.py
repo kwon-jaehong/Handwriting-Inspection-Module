@@ -2,11 +2,17 @@
 import torch
 from torchvision import transforms
 from PIL import Image, ImageFont, ImageDraw
-from infer_MX.MX.models import Generator
+from MX.models import Generator
 from pathlib import Path
 import os
 
 
+
+TRANSFORM = transforms.Compose([
+    transforms.Resize((128, 128)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.5], [0.5])
+])
 
 def normalize(tensor, eps=1e-5):
     """ Normalize tensor to [0, 1] """
@@ -49,6 +55,64 @@ def render(font, char, size=(128, 128), pad=20):
 
 ########################################################
 
+## 손글씨 생성에 뼈대가 될 ttf 파일
+source_path = "./infer_MX/source.ttf"
+
+## 손글씨 생성 이미지 저장 폴더
+# save_dir = "./result_426000"
+save_dir = "./gen_result_last"
+
+## 모델 저장파일
+# weight_path = "./infer_MX/426000.pth"
+weight_path = "./infer_MX/last.pth"
+
+## 모델 config 관찰자 수
+n_experts = 12
+
+## 생성 모델 배치사이즈
+batch_size = 16
+########################################################
+
+
+## 생성모델 가중치 불러옴
+device = torch.device('cpu')
+gen = Generator(n_experts=n_experts, n_emb=2).eval()
+weight = torch.load(weight_path,map_location=device)
+if "generator_ema" in weight:
+    weight = weight["generator_ema"]
+gen.load_state_dict(weight)
+
+
+
+## 생성할 글자 정보 파싱 (완성형 한글 2350자)
+f = open('./infer_MX/generation_char.txt','r')
+line = f.readline()
+line = line.replace(' ','')
+gen_chars = line
+## 생성할 글자 정보 파싱 끝
+
+
+gen_chars="안녕하세요동해물과백두산이"
+
+
+
+########################################################
+ref_path = "./infer_MX/example_png_data/"
+ref_path = "./infer_MX/tempdata2/"
+
+
+file_list = os.listdir(ref_path)
+ref_chars = [ fname.lower().replace('.png','') for fname in file_list if fname.lower().endswith('.png')]
+ref_chars = "".join(ref_chars)
+
+
+## 이미지 불러오고 쌓음
+ref_imgs_list = []
+for img_path in [ fname for fname in file_list if fname.lower().endswith('.png')]:
+    ref_img = Image.open(os.path.join(ref_path,img_path))
+    ref_imgs_list.append(ref_img)
+
+ref_imgs = torch.stack([TRANSFORM(img) for img in ref_imgs_list])
 
 
 
@@ -56,54 +120,11 @@ def render(font, char, size=(128, 128), pad=20):
 
 
 # ########################################################
-# ref_path = "./infer_MX/example_png_data/"
-# ref_path = "./infer_MX/tempdata2/"
 
+def infer_MX(gen, save_dir, source_path, gen_chars,ref_imgs,batch_size=32):
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
 
-# file_list = os.listdir(ref_path)
-# ref_chars = [ fname.lower().replace('.png','') for fname in file_list if fname.lower().endswith('.png')]
-# ref_chars = "".join(ref_chars)
-
-
-# ## 이미지 불러오고 쌓음
-# ref_imgs_list = []
-# for img_path in [ fname for fname in file_list if fname.lower().endswith('.png')]:
-#     ref_img = Image.open(os.path.join(ref_path,img_path))
-#     ref_imgs_list.append(ref_img)
-
-# ref_imgs = torch.stack([TRANSFORM(img) for img in ref_imgs_list])
-
-
-
-
-
-
-# # ########################################################
-
-def infer_MX(gen,weight_path,source_path, gen_chars,ref_imgs):
-    
-    TRANSFORM = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.5], [0.5])
-    ])
-    
-    ## 생성 모델 배치사이즈
-    batch_size = 16   
-
-    ## 모델 config 관찰자 수
-    n_experts = 12
-
-    # ## 생성모델 가중치 불러옴
-    device = torch.device('cpu')
-
-    gen = Generator(n_experts=n_experts, n_emb=2).eval()
-    weight = torch.load(weight_path,map_location=device)
-    if "generator_ema" in weight:
-        weight = weight["generator_ema"]
-    gen.load_state_dict(weight)
-    
-      
     ## 뼈대 글자(고딕) 의 ttf파일 불러옴
     source = ImageFont.truetype(str(source_path), size=150)
         
@@ -131,14 +152,14 @@ def infer_MX(gen,weight_path,source_path, gen_chars,ref_imgs):
         char_facts = gen.factorize(gen.encode(source_img), 1)
         gen_feats = gen.defactorize(style_facts, char_facts)
         out = gen.decode(gen_feats)[0].detach().cpu()
-        # path = save_dir / f"{char}.png"
+        path = save_dir / f"{char}.png"
         
         ## 저장하고 끝
-        # save_tensor_to_image(out, path)
+        save_tensor_to_image(out, path)
 
 
-# infer_MX(gen, save_dir, source_path,  gen_chars, ref_imgs, batch_size)
+infer_MX(gen, save_dir, source_path,  gen_chars, ref_imgs, batch_size)
 
-# a = 100
+a = 100
 
 
