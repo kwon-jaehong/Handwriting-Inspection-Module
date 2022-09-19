@@ -108,23 +108,25 @@ class MainWindow(QMainWindow):
         ## gan model list 불러옴
         gan_model_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.gan_models_dir_path) if fname.lower().endswith('.pth')]
         
-        ## 손글씨 생성 참조할 손글씨 이미지 리스트
-        ref_image_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.vit_models_dir_path) if fname.lower().endswith('.png')]
+        # ## 손글씨 생성 참조할 손글씨 이미지 리스트
+        # ref_image_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.result_dir_path) if fname.lower().endswith('.png')]
 
+        # _ = run.infer_MX(weight_path,source_ttf_path, gen_chars,ref_path)
+        run.infer_MX(gan_model_list[0],source_ttf_file_list[0],gan_chars,self.result_dir_path,self.gan_result_dir_path)
         
         
         ## vit model list 불러옴(손글씨 검수 모델)
         vit_model_list = [ os.path.join(self.gan_models_dir_path,fname) for fname in os.listdir(self.vit_models_dir_path) if fname.lower().endswith('.pth')]
 
-
-        
         
                 
         
         
         print("a")
         pass
-        
+    
+    ## 단순 반복문
+    
     # 작업창 메인 레이아웃 위젯 생성
     def create_main_wiget(self):
         main_wiget = QWidget()

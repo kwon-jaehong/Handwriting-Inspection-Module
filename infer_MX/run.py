@@ -80,13 +80,16 @@ def render(font, char, size=(128, 128), pad=20):
 
 # # ########################################################
 
-def infer_MX(gen,weight_path,source_path, gen_chars,ref_imgs):
+def infer_MX(weight_path,source_ttf_path, gan_chars,ref_path,save_dir):
     
     TRANSFORM = transforms.Compose([
     transforms.Resize((128, 128)),
     transforms.ToTensor(),
     transforms.Normalize([0.5], [0.5])
     ])
+    
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
     
     ## 생성 모델 배치사이즈
     batch_size = 16   
@@ -98,14 +101,24 @@ def infer_MX(gen,weight_path,source_path, gen_chars,ref_imgs):
     device = torch.device('cpu')
 
     gen = Generator(n_experts=n_experts, n_emb=2).eval()
+    
     weight = torch.load(weight_path,map_location=device)
     if "generator_ema" in weight:
         weight = weight["generator_ema"]
     gen.load_state_dict(weight)
     
+    
+    
+    ref_file_list = os.listdir(ref_path)
+    ref_imgs_list = []
+    for img_path in [ fname for fname in ref_file_list if fname.lower().endswith('.png') and fname[:-4] in gan_chars]:
+        ref_img = Image.open(os.path.join(ref_path,img_path))
+        ref_imgs_list.append(ref_img)
+    ref_imgs = torch.stack([TRANSFORM(img) for img in ref_imgs_list])
+    
       
     ## 뼈대 글자(고딕) 의 ttf파일 불러옴
-    source = ImageFont.truetype(str(source_path), size=150)
+    source = ImageFont.truetype(str(source_ttf_path), size=150)
         
     ## 이미지를 배치사이즈로 나눔
     ref_batches = torch.split(ref_imgs, batch_size)
@@ -124,17 +137,20 @@ def infer_MX(gen,weight_path,source_path, gen_chars,ref_imgs):
     
     
     ## 손글씨 이미지 생성
-    for char in gen_chars:        
+    # out = {}
+    for char in gan_chars:        
         ## 소스 이미지 불러옴 (뼈대 & 글자 프린트 이미지)
         source_img = TRANSFORM(render(source, char)).unsqueeze(0)
         
         char_facts = gen.factorize(gen.encode(source_img), 1)
         gen_feats = gen.defactorize(style_facts, char_facts)
+        # out[char] = gen.decode(gen_feats)[0].detach().cpu()
         out = gen.decode(gen_feats)[0].detach().cpu()
-        # path = save_dir / f"{char}.png"
+        path = save_dir / f"{char}.bmp"
         
         ## 저장하고 끝
-        # save_tensor_to_image(out, path)
+        save_tensor_to_image(out, path)
+    # return out
 
 
 # infer_MX(gen, save_dir, source_path,  gen_chars, ref_imgs, batch_size)

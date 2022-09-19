@@ -3,3 +3,4 @@ result/
 *.pth
 *__pycache__*
 *.png
+g_handwriting_image/

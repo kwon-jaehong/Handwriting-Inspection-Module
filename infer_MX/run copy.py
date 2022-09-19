@@ -2,7 +2,7 @@
 import torch
 from torchvision import transforms
 from PIL import Image, ImageFont, ImageDraw
-from MX.models import Generator
+from infer_MX.MX.models import Generator
 from pathlib import Path
 import os
 
@@ -64,7 +64,7 @@ save_dir = "./gen_result_last"
 
 ## 모델 저장파일
 # weight_path = "./infer_MX/426000.pth"
-weight_path = "./infer_MX/last.pth"
+weight_path = "./config_data/gan_models/0-last.pth"
 
 ## 모델 config 관찰자 수
 n_experts = 12
@@ -152,7 +152,7 @@ def infer_MX(gen, save_dir, source_path, gen_chars,ref_imgs,batch_size=32):
         char_facts = gen.factorize(gen.encode(source_img), 1)
         gen_feats = gen.defactorize(style_facts, char_facts)
         out = gen.decode(gen_feats)[0].detach().cpu()
-        path = save_dir / f"{char}.png"
+        path = save_dir / f"{char}.bmp"
         
         ## 저장하고 끝
         save_tensor_to_image(out, path)
