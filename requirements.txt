@@ -1,0 +1,17 @@
+fonttools==4.37.1
+munch==2.5.0
+numpy==1.21.6
+opencv-python==4.6.0.66
+Pillow==9.2.0
+pkg_resources==0.0.0
+PyQt5==5.14.0
+PyQt5-sip==12.11.0
+ruamel.yaml==0.17.21
+ruamel.yaml.clib==0.2.6
+sconf==0.2.5
+six==1.16.0
+torch==1.8.2+cpu
+torchaudio==0.8.2
+torchvision==0.9.2+cpu
+tqdm==4.64.1
+typing_extensions==4.3.0
