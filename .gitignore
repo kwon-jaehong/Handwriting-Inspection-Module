@@ -4,3 +4,6 @@ result/
 *__pycache__*
 *.png
 g_handwriting_image/
+*mlruns*
+*outputs*
+*data*

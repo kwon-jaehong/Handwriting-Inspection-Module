@@ -1,0 +1,48 @@
+defaults:
+  - override hydra/sweeper: optuna
+  - override hydra/sweeper/sampler: tpe
+
+hydra:
+  sweeper:
+    sampler:
+      seed: 123
+    direction: maximize
+    study_name: simple_objective
+    storage: null
+    n_trials: 100
+    n_jobs: 1
+
+    params:
+      parameters_.lr: range(0.00001, 0.00005, 0.00001)
+
+
+
+parameters_:
+  ns: 1
+  nz: 100
+  beta: 0.1
+  lr: 0.1
+  gan_lr: 0.0002
+
+env_:
+  # backend: "nccl"
+  experiments_id: 0
+  backend: "nccl" 
+  mlflow_run_tag: "공사중"
+  num_classes: 10
+  feat_dim: 128
+  batch_size: 128
+  image_size: 32
+  epochs: 10
+  gpus: 1
+  num_worker: 4
+  data_save_dir: "./data_save_temp"
+  
+
+
+
+
+
+
+
+
