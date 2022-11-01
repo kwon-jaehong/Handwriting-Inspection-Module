@@ -21,7 +21,7 @@ parameters_:
   ns: 1
   nz: 100
   beta: 0.1
-  lr: 0.1
+  lr: 0.001
   gan_lr: 0.0002
 
 env_:
@@ -29,14 +29,16 @@ env_:
   experiments_id: 0
   backend: "nccl" 
   mlflow_run_tag: "공사중"
-  num_classes: 10
-  feat_dim: 128
-  batch_size: 128
+  feat_dim: 2048
+  batch_size: 256
   image_size: 32
-  epochs: 10
+  epochs: 200
   gpus: 1
   num_worker: 4
+  num_classes: 2350
   data_save_dir: "./data_save_temp"
+  target_char_txt: "./generation_char.txt"
+  train_ttf_dir: "./source_ttf_data"
   
 
 

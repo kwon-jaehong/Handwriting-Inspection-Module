@@ -27,7 +27,7 @@ class ARPLoss(nn.CrossEntropyLoss):
         self.margin_loss = nn.MarginRankingLoss(margin=1.0)
 
 
-    def forward(self, x, y, labels=None):
+    def forward(self, x, y,device, labels=None):
         dist_dot_p = self.Dist(x, center=self.points, metric='dot')
         dist_l2_p = self.Dist(x, center=self.points)
         logits = dist_l2_p - dist_dot_p
@@ -40,7 +40,7 @@ class ARPLoss(nn.CrossEntropyLoss):
 
         center_batch = self.points[labels, :]
         _dis_known = (x - center_batch).pow(2).mean(1)
-        target = torch.ones(_dis_known.size())
+        target = torch.ones(_dis_known.size()).to(device=device)
         loss_r = self.margin_loss(self.radius, _dis_known, target)
 
         loss = loss + self.weight_pl * loss_r
