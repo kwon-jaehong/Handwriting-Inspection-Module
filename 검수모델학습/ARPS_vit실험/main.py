@@ -27,7 +27,7 @@ import mlflow
 from utils import AverageMeter
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
-
+from scipy.special import softmax
 from matplotlib import pyplot as plt
 
 from models import classifier32ABN,ResNet50
@@ -75,7 +75,7 @@ def trainer(rank, gpus, args):
 
     # 채널, 클래스 갯수
     # net = classifier32ABN(1,num_classes=args.env_.num_classes).to(rank)
-    net = ResNet50(1,args.env_.num_classes).to(rank)
+    net = ResNet50(1,args.env_.num_classes,args.env_.feat_dim).to(rank)
     
     
     ## 생성 모델 함수, 노이즈 디멘젼, 크기, 생성할 채널
@@ -105,7 +105,7 @@ def trainer(rank, gpus, args):
     for epoch in range(0,args.env_.epochs):
         train_cs(net, netD, netG, criterion, criterionD,optimizer, optimizerD, optimizerG,trainloader,rank,epoch,args)
         train(net, criterion, optimizer, trainloader,rank,epoch)
-        embeding_visualization(net, criterion,train_dataset,trainloader, epoch, rank, args)
+        embeding_visualization(net,netG, criterion,train_dataset,trainloader, epoch, rank, args)
         if rank == 0:
             # torch.save(net.module.state_dict(), os.path.join('./last.pth'))
             torch.save(net.state_dict(), os.path.join('./last.pth'))
@@ -120,6 +120,7 @@ def train_cs(net, netD, netG, criterion, criterionD, optimizer, optimizerD, opti
     net.train()
     netD.train()
     netG.train()
+    criterion.train()
     
     loss_all, real_label, fake_label = 0, 1, 0
     for batch_idx, (data, labels) in enumerate(trainloader):
@@ -243,48 +244,63 @@ def train(net, criterion, optimizer, trainloader,device,epoch):
     return loss_all
 
 
-def embeding_visualization(net, criterion,train_dataset, trainloader, epoch, device, args):
+def embeding_visualization(net,netG, criterion,train_dataset, trainloader, epoch, device, args):
     net.eval()
-    deep_features, actual = [], []
+    netG.eval()
+    criterion.eval()
+    
+
+
     with torch.no_grad():
         for data,label in trainloader:
             data = data.to(device=device)
             label = label.to(device=device)
-            x, _ = net(device,data, True)
-            deep_features += x.cpu().numpy().tolist()
-            actual += label.cpu().numpy().tolist()
+            x, y = net(device,data, True)
+            logits, _ = criterion(x, y,device)
             
+            p_real = logits.cpu().numpy()
+            break
             
-            
-    plt.figure(figsize=(10, 10))
-    pca = PCA(n_components=2)
-    
-    #np.array(deep_features) shape =  (4700, 2048)
-    
-            
-    ## PCA 학습
-    center_point = np.array(pca.fit_transform(np.array(criterion.points.detach().cpu().numpy())))      
+        noise = torch.FloatTensor(data.size(0), args.parameters_.nz, args.parameters_.ns, args.parameters_.ns).normal_(0, 1).to(device=device) 
+        fake = netG(noise)
+        x, y = net(device,fake, True)
+        logits, _ = criterion(x, y,device)
+        p_fake = logits.cpu().numpy()
         
-    ## 실데이터 시각화
-    cluster = np.array(pca.transform(np.array(deep_features)))
-    actual = np.array(actual)
-    label_list = train_dataset.char_list
-    for i, label in enumerate(label_list):
-        idx = np.where(actual == i)
-        plt.scatter(cluster[idx, 0], cluster[idx, 1], marker='.', color='black')
+    
+    print(f"{epoch} 에폭 - real 데이터 logit 값 max {np.max(np.round(softmax(p_real,1),3)[0]):.4f}")
+    print(f"{epoch} 에폭 - fake 데이터 logit 값 max {np.max(np.round(softmax(p_fake,1),3)[0]):.4f}")
+    
+            
+    # plt.figure(figsize=(10, 10))
+    # pca = PCA(n_components=2)
+    
+    # #np.array(deep_features) shape =  (4700, 2048)
+    
+            
+    # ## PCA 학습
+    # center_point = np.array(pca.fit_transform(np.array(criterion.points.detach().cpu().numpy())))      
+        
+    # ## 실데이터 시각화
+    # cluster = np.array(pca.transform(np.array(deep_features)))
+    # actual = np.array(actual)
+    # label_list = train_dataset.char_list
+    # for i, label in enumerate(label_list):
+    #     idx = np.where(actual == i)
+    #     plt.scatter(cluster[idx, 0], cluster[idx, 1], marker='.', color='black')
     
     
-    ## 센터 좌표 시각화
-    for i, label in enumerate(center_point):
-        plt.scatter(center_point[i, 0], center_point[i, 1], marker='s', label=label)
-    # 설명 가능
+    # ## 센터 좌표 시각화
+    # for i, label in enumerate(center_point):
+    #     plt.scatter(center_point[i, 0], center_point[i, 1], marker='s', label=label)
+    # # 설명 가능
     
 
 
     
-    # PCA 주성분 설명력 출력
-    # print(pca.explained_variance_ratio_)
-    plt.savefig(os.path.join(args.env_.data_save_dir,str(epoch)+'_'+str(np.sum(pca.explained_variance_ratio_))[:5]+'_feature.png'), dpi=300)
+    # # PCA 주성분 설명력 출력
+    # # print(pca.explained_variance_ratio_)
+    # plt.savefig(os.path.join(args.env_.data_save_dir,str(epoch)+'_'+str(np.sum(pca.explained_variance_ratio_))[:5]+'_feature.png'), dpi=300)
         
             
 

@@ -160,7 +160,7 @@ class block(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, layers, image_channels, num_classes,num_ABN=2):
+    def __init__(self, block, layers, image_channels, num_classes,feat_dim,num_ABN=2):
         super(ResNet, self).__init__()
         self.in_channels = 64
         self.conv1 = nn.Conv2d(image_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -175,7 +175,9 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, layers[3], intermediate_channels=512, stride=2,num_ABN=num_ABN)
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * 4, num_classes)
+        
+        self.fc1 = nn.Linear(512 * 4, feat_dim)
+        self.fc_last = nn.Linear(feat_dim, num_classes)
         
         self.apply(weights_init_ABN)
 
@@ -203,14 +205,12 @@ class ResNet(nn.Module):
         for i in range(0,len(self.layer4)):
             x = self.layer4[i](device,x,bn_label)
             
-        
-        # x = self.layer2(x,device,bn_label)
-        # x = self.layer3(x,device,bn_label)
-        # x = self.layer4(x,device,bn_label)
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        y = self.fc(x)
+        x = self.fc1(x)
+        y = self.fc_last(x)
+        
         if return_feature:
             return x, y
         else:
@@ -247,8 +247,8 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
 
-def ResNet50(img_channel=3, num_classes=1000):
-    return ResNet(block, [3, 4, 6, 3], img_channel, num_classes)
+def ResNet50(img_channel, num_classes,feat_dim):
+    return ResNet(block, [3, 4, 6, 3], img_channel, num_classes,feat_dim)
 def ResNet101(img_channel=3, num_classes=1000):
     return ResNet(block, [3, 4, 23, 3], img_channel, num_classes)
 def ResNet152(img_channel=3, num_classes=1000):
