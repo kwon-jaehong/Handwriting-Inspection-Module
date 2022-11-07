@@ -20,91 +20,6 @@ def weights_init_ABN(m):
 
 
 
-class classifier32ABN(nn.Module):
-    def __init__(self,nc, num_classes=10, num_ABN=2):
-        super(self.__class__, self).__init__()
-        self.num_classes = num_classes
-        self.conv1 = nn.Conv2d(nc,       64,     3, 1, 1, bias=False)
-        self.conv2 = nn.Conv2d(64,      64,     3, 1, 1, bias=False)
-        self.conv3 = nn.Conv2d(64,     128,     3, 2, 1, bias=False)
-
-        self.conv4 = nn.Conv2d(128,    128,     3, 1, 1, bias=False)
-        self.conv5 = nn.Conv2d(128,    128,     3, 1, 1, bias=False)
-        self.conv6 = nn.Conv2d(128,    128,     3, 2, 1, bias=False)
-
-        self.conv7 = nn.Conv2d(128,    128,     3, 1, 1, bias=False)
-        self.conv8 = nn.Conv2d(128,    128,     3, 1, 1, bias=False)
-        self.conv9 = nn.Conv2d(128,    128,     3, 2, 1, bias=False)
-
-        self.bn1 = MultiBatchNorm(64, num_ABN)
-        self.bn2 = MultiBatchNorm(64, num_ABN)
-        self.bn3 = MultiBatchNorm(128, num_ABN)
-
-        self.bn4 = MultiBatchNorm(128, num_ABN)
-        self.bn5 = MultiBatchNorm(128, num_ABN)
-        self.bn6 = MultiBatchNorm(128, num_ABN)
-
-        self.bn7 = MultiBatchNorm(128, num_ABN)
-        self.bn8 = MultiBatchNorm(128, num_ABN)
-        self.bn9 = MultiBatchNorm(128, num_ABN)
-        self.bn10 = MultiBatchNorm(128, num_ABN)
-
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(128, num_classes, bias=False)
-        self.dr1 = nn.Dropout2d(0.2)
-        self.dr2 = nn.Dropout2d(0.2)
-        self.dr3 = nn.Dropout2d(0.2)
-
-        self.apply(weights_init_ABN)
-
-    def forward(self,device, x, return_feature=False, bn_label=None):
-        if bn_label is None:
-            bn_label = 0 * torch.ones(x.shape[0], dtype=torch.long).to(device=device)
-            ## bn_label = 0
-        
-        x = self.dr1(x)
-        x = self.conv1(x)
-        x, _ = self.bn1(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-        x = self.conv2(x)
-        x, _ = self.bn2(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-        x = self.conv3(x)
-        x, _ = self.bn3(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-
-        x = self.dr2(x)
-        x = self.conv4(x)
-        x, _ = self.bn4(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-        x = self.conv5(x)
-        x, _ = self.bn5(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-        x = self.conv6(x)
-        x, _ = self.bn6(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-
-        x = self.dr3(x)
-        x = self.conv7(x)
-        x, _ = self.bn7(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-        x = self.conv8(x)
-        x, _ = self.bn8(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-        x = self.conv9(x)
-        x, _ = self.bn9(x, bn_label)
-        x = nn.LeakyReLU(0.2)(x)
-
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        y = self.fc(x)
-        
-        if return_feature:
-            return x, y
-        else:
-            return y
-
-
 class block(nn.Module):
     def __init__(self, in_channels, intermediate_channels,identity_downsample=None, stride=1,num_ABN=2):
         super(block, self).__init__()
@@ -177,6 +92,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         
         self.fc1 = nn.Linear(512 * 4, feat_dim)
+        
         self.fc_last = nn.Linear(feat_dim, num_classes)
         
         self.apply(weights_init_ABN)

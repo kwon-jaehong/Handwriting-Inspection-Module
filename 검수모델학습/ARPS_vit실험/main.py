@@ -1,5 +1,4 @@
 import os
-from turtle import color
 from omegaconf import DictConfig
 import hydra
 from hydra.core.hydra_config import HydraConfig
@@ -30,7 +29,7 @@ from sklearn.decomposition import PCA
 from scipy.special import softmax
 from matplotlib import pyplot as plt
 
-from models import classifier32ABN,ResNet50
+from models import ResNet50
 import gan
 from ARPLoss import ARPLoss
 from d_set import Hanguldataset

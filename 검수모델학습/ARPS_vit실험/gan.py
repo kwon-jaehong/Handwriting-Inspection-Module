@@ -59,6 +59,7 @@ class _netG32(nn.Module):
 
         self.main = nn.Sequential(
             # input is Z, going into a convolution
+            # ConvTranspose2d 인풋 채널,아웃풋 채널,커널사이즈,스트라이드,패딩
             nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
